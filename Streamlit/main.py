@@ -11,88 +11,114 @@ if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 # ─── Load Environment ─────────────────────────────────────────────────────────
-load_dotenv()  # ensure FASTAPI_URL is loaded
+load_dotenv()
 
 FASTAPI_URL = os.getenv("FASTAPI_URL", "http://127.0.0.1:8000")
 REGISTER_URL = f"{FASTAPI_URL}/auth/register"
-LOGIN_URL = f"{FASTAPI_URL}/auth/login"
+LOGIN_URL    = f"{FASTAPI_URL}/auth/login"
 
-# ─── Streamlit Config ────────────────────────────────────────────────────────
-st.set_page_config(page_title="🔐 AskMira Auth", layout="centered")
+# ─── Page Config ──────────────────────────────────────────────────────────────
+st.set_page_config(page_title="AskMira Auth", layout="centered")
 
-# ─── Session State ───────────────────────────────────────────────────────────
-if "logged_in" not in st.session_state:
-    st.session_state["logged_in"] = False
-if "access_token" not in st.session_state:
-    st.session_state["access_token"] = None
+# ─── SESSION STATE ────────────────────────────────────────────────────────────
+st.session_state.setdefault("logged_in", False)
+st.session_state.setdefault("access_token", None)
 
-# ─── (Optional) Custom CSS ────────────────────────────────────────────────────
-def add_custom_styles(image_path: str):
-    with open(image_path, "rb") as img:
-        b64 = base64.b64encode(img.read()).decode()
-    css = f"""
-    <style>
-    [data-testid="stAppViewContainer"] {{
-        background: url("data:image/png;base64,{b64}") no-repeat center/cover;
-    }}
-    .stButton > button {{
-        width: 100%;
-        background-color: #333;
-        color: #fff;
-    }}
-    .stButton > button:hover {{
-        background-color: #111;
-    }}
-    </style>
+# ─── INJECT ARTISTIC FONT + STYLES ─────────────────────────────────────────────
+st.markdown(
     """
-    st.markdown(css, unsafe_allow_html=True)
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
+    <style>
+      body { background: #f5f7fa; }
+      .header {
+        font-family: 'Cinzel Decorative', serif;
+        font-size: 3.5rem;
+        color: #2E86AB;
+        text-align: center;
+        margin-bottom: 1rem;
+      }
+      .stTextInput>div>div>input {
+        border-radius: 0.5rem;
+      }
+      .stSelectbox>div>div {
+        border-radius: 0.5rem;
+      }
+      .stButton>button {
+        background-color: #2E86AB;
+        color: white;
+        border-radius: 0.5rem;
+        padding: 0.8rem 0;
+        font-size: 1.2rem;
+        width: 100%;
+      }
+      .stButton>button:hover {
+        background-color: #1B4F72;
+      }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
-# add_custom_styles("Images/YourBackground.png")  # uncomment & update path if you like
-
-# ─── Authentication Pages ─────────────────────────────────────────────────────
+# ─── SIGNUP / LOGIN FUNCTIONS ─────────────────────────────────────────────────
 def signup(username: str, email: str, password: str):
-    payload = {"username": username, "email": email, "password": password}
-    resp = requests.post(REGISTER_URL, json=payload)
+    resp = requests.post(REGISTER_URL, json={"username": username, "email": email, "password": password})
     if resp.status_code in (200, 201):
         st.success("✅ Account created! Please log in.")
-    else:
+        return
+    try:
         detail = resp.json().get("detail", resp.text)
-        st.error(f"Signup failed: {detail}")
+    except ValueError:
+        detail = resp.text or "Unknown error"
+    st.error(f"Signup failed [{resp.status_code}]: {detail}")
+
 
 def login(username: str, password: str):
-    payload = {"username": username, "password": password}
-    resp = requests.post(LOGIN_URL, json=payload)
+    resp = requests.post(LOGIN_URL, json={"username": username, "password": password})
     if resp.status_code == 200:
-        data = resp.json()
-        st.session_state["access_token"] = data["access_token"]
-        st.session_state["logged_in"] = True
-        st.experimental_rerun()
-    else:
+        try:
+            token = resp.json().get("access_token")
+        except ValueError:
+            st.error("Login failed: invalid JSON response.")
+            return
+        if token:
+            st.session_state["access_token"] = token
+            st.session_state["logged_in"] = True
+            st.rerun()
+        else:
+            st.error("Login failed: no token returned.")
+        return
+    try:
         detail = resp.json().get("detail", resp.text)
-        st.error(f"Login failed: {detail}")
+    except ValueError:
+        detail = resp.text or "Unknown error"
+    st.error(f"Login failed [{resp.status_code}]: {detail}")
 
+# ─── AUTH PAGE LAYOUT ─────────────────────────────────────────────────────────
 def auth_page():
-    st.title("🔐 AskMira Login / Signup")
-    mode = st.selectbox("I want to", ["Login", "Signup"])
+    # Remove lock icon, just display the name
+    st.markdown('<div class="header">AskMira</div>', unsafe_allow_html=True)
+
+    mode = st.selectbox("", ["Login", "Signup"] , key="auth_mode")
     username = st.text_input("Username", key="auth_username")
     password = st.text_input("Password", type="password", key="auth_password")
-    email = None
     if mode == "Signup":
         email = st.text_input("Email", key="auth_email")
+    else:
+        email = None
 
     if st.button(mode):
         if mode == "Signup":
             if username and email and password:
                 signup(username, email, password)
             else:
-                st.error("Fill in all fields to sign up.")
+                st.error("Please fill in all fields to sign up.")
         else:
             if username and password:
                 login(username, password)
             else:
-                st.error("Enter both username and password.")
+                st.error("Please enter both username and password.")
 
-# ─── Main ────────────────────────────────────────────────────────────────────
+# ─── MAIN ──────────────────────────────────────────────────────────────────────
 def main():
     if not st.session_state["logged_in"]:
         auth_page()
@@ -101,8 +127,7 @@ def main():
         if st.sidebar.button("Logout"):
             st.session_state["logged_in"] = False
             st.session_state["access_token"] = None
-            st.experimental_rerun()
-        # Hand off to your main app once logged in
+            st.rerun()
         import landing
         landing.run()
 
