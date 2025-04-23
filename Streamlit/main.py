@@ -1,6 +1,5 @@
 import os
 import sys
-import base64
 import streamlit as st
 import requests
 from dotenv import load_dotenv
@@ -12,8 +11,7 @@ if project_root not in sys.path:
 
 # ─── Load Environment ─────────────────────────────────────────────────────────
 load_dotenv()
-
-FASTAPI_URL = os.getenv("FASTAPI_URL", "http://127.0.0.1:8000")
+FASTAPI_URL  = os.getenv("FASTAPI_URL", "http://127.0.0.1:8000")
 REGISTER_URL = f"{FASTAPI_URL}/auth/register"
 LOGIN_URL    = f"{FASTAPI_URL}/auth/login"
 
@@ -23,6 +21,7 @@ st.set_page_config(page_title="AskMira Auth", layout="centered")
 # ─── SESSION STATE ────────────────────────────────────────────────────────────
 st.session_state.setdefault("logged_in", False)
 st.session_state.setdefault("access_token", None)
+st.session_state.setdefault("auth_username", None)
 
 # ─── INJECT ARTISTIC FONT + STYLES ─────────────────────────────────────────────
 st.markdown(
@@ -37,12 +36,8 @@ st.markdown(
         text-align: center;
         margin-bottom: 1rem;
       }
-      .stTextInput>div>div>input {
-        border-radius: 0.5rem;
-      }
-      .stSelectbox>div>div {
-        border-radius: 0.5rem;
-      }
+      .stTextInput>div>div>input { border-radius: 0.5rem; }
+      .stSelectbox>div>div       { border-radius: 0.5rem; }
       .stButton>button {
         background-color: #2E86AB;
         color: white;
@@ -59,75 +54,81 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# ─── SIGNUP / LOGIN FUNCTIONS ─────────────────────────────────────────────────
+# ─── AUTH HELPERS ──────────────────────────────────────────────────────────────
 def signup(username: str, email: str, password: str):
-    resp = requests.post(REGISTER_URL, json={"username": username, "email": email, "password": password})
-    if resp.status_code in (200, 201):
+    r = requests.post(REGISTER_URL, json={
+        "username": username,
+        "email": email,
+        "password": password
+    })
+    if r.status_code in (200, 201):
         st.success("✅ Account created! Please log in.")
         return
     try:
-        detail = resp.json().get("detail", resp.text)
+        detail = r.json().get("detail", r.text)
     except ValueError:
-        detail = resp.text or "Unknown error"
-    st.error(f"Signup failed [{resp.status_code}]: {detail}")
-
+        detail = r.text or "Unknown error"
+    st.error(f"Signup failed [{r.status_code}]: {detail}")
 
 def login(username: str, password: str):
-    resp = requests.post(LOGIN_URL, json={"username": username, "password": password})
-    if resp.status_code == 200:
+    r = requests.post(LOGIN_URL, json={
+        "username": username,
+        "password": password
+    })
+    if r.status_code == 200:
         try:
-            token = resp.json().get("access_token")
+            token = r.json().get("access_token")
         except ValueError:
-            st.error("Login failed: invalid JSON response.")
+            st.error("Login failed: invalid JSON")
             return
         if token:
-            st.session_state["access_token"] = token
-            st.session_state["logged_in"] = True
+            st.session_state["access_token"]  = token
+            st.session_state["logged_in"]     = True
+            st.session_state["auth_username"] = username
             st.rerun()
         else:
-            st.error("Login failed: no token returned.")
+            st.error("Login failed: no token returned")
         return
     try:
-        detail = resp.json().get("detail", resp.text)
+        detail = r.json().get("detail", r.text)
     except ValueError:
-        detail = resp.text or "Unknown error"
-    st.error(f"Login failed [{resp.status_code}]: {detail}")
+        detail = r.text or "Unknown error"
+    st.error(f"Login failed [{r.status_code}]: {detail}")
 
-# ─── AUTH PAGE LAYOUT ─────────────────────────────────────────────────────────
+# ─── AUTH PAGE ─────────────────────────────────────────────────────────────────
 def auth_page():
-    # Remove lock icon, just display the name
     st.markdown('<div class="header">AskMira</div>', unsafe_allow_html=True)
 
-    mode = st.selectbox("", ["Login", "Signup"] , key="auth_mode")
-    username = st.text_input("Username", key="auth_username")
-    password = st.text_input("Password", type="password", key="auth_password")
-    if mode == "Signup":
-        email = st.text_input("Email", key="auth_email")
-    else:
-        email = None
+    mode = st.selectbox("", ["Login", "Signup"], key="auth_mode")
+    username = st.text_input("Username", key="auth_username_input")
+    password = st.text_input("Password", type="password", key="auth_password_input")
+    email = st.text_input("Email", key="auth_email_input") if mode == "Signup" else None
 
     if st.button(mode):
         if mode == "Signup":
             if username and email and password:
                 signup(username, email, password)
             else:
-                st.error("Please fill in all fields to sign up.")
+                st.error("Fill in all fields to sign up.")
         else:
             if username and password:
                 login(username, password)
             else:
-                st.error("Please enter both username and password.")
+                st.error("Enter both username and password.")
 
 # ─── MAIN ──────────────────────────────────────────────────────────────────────
 def main():
     if not st.session_state["logged_in"]:
         auth_page()
     else:
-        st.sidebar.markdown(f"👤 **{st.session_state.get('auth_username')}**")
+        st.sidebar.markdown(f"👤 **{st.session_state['auth_username']}**")
         if st.sidebar.button("Logout"):
-            st.session_state["logged_in"] = False
-            st.session_state["access_token"] = None
+            st.session_state["logged_in"]     = False
+            st.session_state["access_token"]  = None
+            st.session_state["auth_username"] = None
             st.rerun()
+
+        # when logged in, hand off to landing
         import landing
         landing.run()
 

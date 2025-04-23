@@ -237,76 +237,64 @@ def scrape_country(name: str, url: str) -> str:
     """Extract main descriptive text and educational information for a country."""
     try:
         soup = fetch_soup(url)
-        
-        # Try different possible content containers
+
         content_selectors = [
-            'div.entry-content', 
+            'div.entry-content',
             'div.page-content',
             'div.main-content',
             'article',
             'main'
         ]
-        
+
         container = None
         for selector in content_selectors:
             container = soup.select_one(selector)
             if container and len(container.get_text(strip=True)) > 100:
                 break
-        
+
         if not container:
             logger.warning(f"No content container found for {name}, falling back to <p> tags")
             paras = soup.find_all('p')
         else:
-            # Get paragraphs from the container
-            paras = container.find_all('p')
-            
-            # Also try to get headings and lists for more complete information
-            headings = container.find_all(['h1', 'h2', 'h3', 'h4', 'h5', 'h6'])
-            lists = container.find_all(['ul', 'ol'])
-            
-            # Add headings as structured content
-            for h in headings:
-                paras.append(h)
-            
-            # Add list items
-            for lst in lists:
-                for li in lst.find_all('li'):
-                    paras.append(li)
-        
-        # Combine all content, preserving some structure
+            paras = container.find_all(['p', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'])
+
+        # Combine all content
         text = f"# {name} Education System\n\n"
-        
-        # Add metadata
         text += f"Source: {url}\n"
         text += f"Scraped: {time.strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-        
-        # Process paragraphs and other elements
-        for p in paras:
-            tag_name = p.name
-            t = p.get_text(strip=True)
-            
-            if not t:
+
+        # Set of country names to detect repeated listings
+        known_countries = set(COUNTRY_TO_REGION.keys())
+
+        for elem in paras:
+            tag = elem.name
+            content = elem.get_text(strip=True)
+
+            if not content:
                 continue
-                
-            # Format based on tag type
-            if tag_name in ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']:
-                level = int(tag_name[1])
-                prefix = '#' * level
-                text += f"{prefix} {t}\n\n"
-            elif tag_name == 'li':
-                text += f"- {t}\n"
+
+            # Heuristic: Skip content that has many known countries in it (likely navigation menus)
+            matches = [country for country in known_countries if country in content]
+            if len(matches) > 5:
+                continue  # skip this paragraph/list
+
+            if tag in ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']:
+                level = int(tag[1])
+                text += f"{'#' * level} {content}\n\n"
+            elif tag == 'li':
+                text += f"- {content}\n"
             else:
-                text += f"{t}\n\n"
-        
-        # Check if we actually got content
+                text += f"{content}\n\n"
+
         if len(text.split('\n')) < 5:
             logger.warning(f"Very little content found for {name}")
-        
+
         return text
-        
+
     except Exception as e:
         logger.error(f"Error scraping country {name}: {e}")
         return ""
+
 
 def upload_to_s3(region: str, country: str, content: str):
     """Upload content to S3 with appropriate error handling."""

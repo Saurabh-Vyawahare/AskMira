@@ -31,6 +31,17 @@ pyarrow = "<19.0.0"
 requests = "^2.32.3"
 beautifulsoup4 = "^4.13.4"
 html2text = "^2025.4.15"
+selenium = "^4.31.0"
+webdriver-manager = "^4.0.2"
+python-docx = "^1.1.2"
+pandas = "^2.2.3"
+openpyxl = "^3.1.5"
+xlrd = "^2.0.1"
+tika = "^3.1.0"
+docx2txt = "^0.9"
+botocore = "^1.38.0"
+pdfplumber = "^0.11.6"
+numpy = "^2.2.5"
 
 [build-system]
 requires = ["poetry-core"]
