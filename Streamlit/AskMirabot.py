@@ -7,8 +7,9 @@ from pinecone import Pinecone
 import numpy as np
 
 # Load environment variables
+# Load environment variables
 load_dotenv()
-FASTAPI_URL = os.getenv("FASTAPI_URL", "http://127.0.0.1:8000")
+FASTAPI_URL = os.getenv("FASTAPI_URL", "http://fastapi:8000")
 CHAT_URL = f"{FASTAPI_URL}/chat"
 
 # Initialize OpenAI
