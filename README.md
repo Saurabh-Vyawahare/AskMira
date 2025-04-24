@@ -1,7 +1,7 @@
 # AskMira: AI-Powered Foreign Credit Evaluation Assistant for Northeastern University
 
 <div align="center">
-  <img src="path/to/your/logo.png" alt="AskMira Logo" width="200"/>
+  <img src=""C:\Users\hp\Downloads\ChatGPT Image Apr 24, 2025, 01_48_22 PM.png"" alt="AskMira Logo" width="200"/>
   <p><em>Streamlining Northeastern University's foreign credit evaluation process through AI</em></p>
   
   [![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://www.docker.com/)
@@ -132,19 +132,19 @@ The Retrieval Augmented Generation pipeline:
 ### Asking About International Credentials at Northeastern
 
 ```
-How does Northeastern University evaluate the French Baccalauréat for transfer credit?
+Can you tell me about the Diploma degree offered by institutions in India?
 ```
 
 ### Querying Northeastern's FCE Regulations
 
 ```
-What are Northeastern's FCE requirements for converting GPAs from German universities?
+Does Northeastern have any rules for processing backlog or failed marksheets?
 ```
 
 ### Checking Equivalency Information
 
 ```
-How many Northeastern credits would a 6 ECTS course from a Spanish university receive?
+What is Northeastern's equivalency for the Pharm.D. degree and a Postgraduate Diploma?
 ```
 
 ## 🛠 Project Structure
